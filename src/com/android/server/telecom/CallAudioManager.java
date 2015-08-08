@@ -390,8 +390,7 @@ final class CallAudioManager extends CallsManagerListenerBase
             Call foregroundCall = getForegroundCall();
             Call waitingForAccountSelectionCall =
                     CallsManager.getInstance().getFirstCallWithState(CallState.PRE_DIAL_WAIT);
-            if (foregroundCall != null && waitingForAccountSelectionCall == null
-                    && foregroundCall.getState() != CallState.DISCONNECTED) {
+            if (foregroundCall != null && waitingForAccountSelectionCall == null) {
                 // In the case where there is a call that is waiting for account selection,
                 // this will fall back to abandonAudioFocus() below, which temporarily exits
                 // the in-call audio mode. This is to allow TalkBack to speak the "Call with"
@@ -470,7 +469,7 @@ final class CallAudioManager extends CallsManagerListenerBase
         int oldMode = mAudioManager.getMode();
 
         Call call = CallsManager.getInstance().getForegroundCall();
-        boolean isSamsungDualSims = SystemProperties.getBoolean("ro.multisim.samsung", false);
+        boolean setMsimAudioParams = SystemProperties.getBoolean("ro.multisim.set_audio_params", false);
 
         Log.v(this, "Request to change audio mode from %d to %d", oldMode, newMode);
 
@@ -479,7 +478,7 @@ final class CallAudioManager extends CallsManagerListenerBase
                 Log.i(this, "Transition from IN_CALL -> RINGTONE. Resetting to NORMAL first.");
                 mAudioManager.setMode(AudioManager.MODE_NORMAL);
             }
-            if (call != null && isSamsungDualSims) {
+            if (call != null && setMsimAudioParams) {
                 setAudioParameters(call, newMode);
             }
             mAudioManager.setMode(newMode);
