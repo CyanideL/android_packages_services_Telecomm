@@ -501,7 +501,12 @@ public class TelecomServiceImpl {
          */
         @Override
         public String getSystemDialerPackage() {
-            return mContext.getResources().getString(R.string.ui_default_package);
+            String dialerPackage = null;
+            ComponentName component = TelephonyUtil.getDialerComponentName(mContext);
+            if (component != null) {
+                dialerPackage = component.getPackageName();
+            }
+            return dialerPackage;
         }
 
         /**
