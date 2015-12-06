@@ -474,10 +474,7 @@ public class TelecomServiceImpl {
         @Override
         public ComponentName getDefaultPhoneApp() {
             // No need to synchronize
-            Resources resources = mContext.getResources();
-            return new ComponentName(
-                    resources.getString(R.string.ui_default_package),
-                    resources.getString(R.string.dialer_default_class));
+            return TelephonyUtil.getDialerComponentName(mContext);
         }
 
         /**
@@ -501,12 +498,7 @@ public class TelecomServiceImpl {
          */
         @Override
         public String getSystemDialerPackage() {
-            String dialerPackage = null;
-            ComponentName component = TelephonyUtil.getDialerComponentName(mContext);
-            if (component != null) {
-                dialerPackage = component.getPackageName();
-            }
-            return dialerPackage;
+            return TelephonyUtil.getDialerComponentName(mContext).getPackageName();
         }
 
         /**
