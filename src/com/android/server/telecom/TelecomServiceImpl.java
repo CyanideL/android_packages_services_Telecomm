@@ -498,7 +498,12 @@ public class TelecomServiceImpl {
          */
         @Override
         public String getSystemDialerPackage() {
-            return TelephonyUtil.getDialerComponentName(mContext).getPackageName();
+            String dialerPackage = null;
+            ComponentName component = TelephonyUtil.getDialerComponentName(mContext);
+            if (component != null) {
+                dialerPackage = component.getPackageName();
+            }
+            return dialerPackage;
         }
 
         /**
@@ -717,6 +722,30 @@ public class TelecomServiceImpl {
 
             synchronized (mLock) {
                 return mCallsManager.getCurrentTtyMode();
+            }
+        }
+
+        /**
+         * @see android.telecom.TelecomManager#getActiveSubscription
+         */
+        public int getActiveSubscription() {
+            synchronized (mLock) {
+                String activeSub = mCallsManager.getActiveSubscription();
+                return (activeSub == null) ? SubscriptionManager.INVALID_SUBSCRIPTION_ID:
+                        Integer.parseInt(activeSub);
+            }
+        }
+
+        /**
+         * @see android.telecom.TelecomManager#switchToOtherActiveSub
+         */
+        public void switchToOtherActiveSub(int subId) {
+            enforceModifyPermission();
+
+            synchronized (mLock) {
+                String activeSub = (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID)
+                        ? null : String.valueOf(subId);
+                mCallsManager.switchToOtherActiveSub(activeSub);
             }
         }
 

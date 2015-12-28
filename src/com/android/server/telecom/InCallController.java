@@ -85,6 +85,11 @@ public final class InCallController extends CallsManagerListenerBase {
         }
 
         @Override
+        public void onConnectionPropertiesChanged(Call call) {
+            updateCall(call);
+        }
+
+        @Override
         public void onCannedSmsResponsesLoaded(Call call) {
             updateCall(call);
         }
@@ -221,6 +226,20 @@ public final class InCallController extends CallsManagerListenerBase {
     @Override
     public void onCallStateChanged(Call call, int oldState, int newState) {
         updateCall(call);
+    }
+
+    @Override
+    public void onMergeFailed(Call call) {
+        if (!mInCallServices.isEmpty()) {
+            Log.i(this, "onMergeFailed :" + call);
+            for (IInCallService inCallService : mInCallServices.values()) {
+                try {
+                    inCallService.onMergeFailed(toParcelableCall(call, true));
+                } catch (RemoteException ignored) {
+                    Log.i(this, "onMergeFailed exception:" + ignored);
+                }
+            }
+        }
     }
 
     @Override
@@ -588,10 +607,11 @@ public final class InCallController extends CallsManagerListenerBase {
 
         int state = getParcelableState(call);
         int capabilities = convertConnectionToCallCapabilities(call.getConnectionCapabilities());
-        int properties = convertConnectionToCallProperties(call.getConnectionCapabilities());
+        int properties = convertConnectionCapsToCallProperties(call.getConnectionCapabilities());
         if (call.isConference()) {
             properties |= android.telecom.Call.Details.PROPERTY_CONFERENCE;
         }
+        properties |= convertConnectionToCallProperties(call.getConnectionProperties());
 
         // If this is a single-SIM device, the "default SIM" will always be the only SIM.
         boolean isDefaultSmsAccount =
@@ -658,6 +678,7 @@ public final class InCallController extends CallsManagerListenerBase {
                 call.getCannedSmsResponses(),
                 capabilities,
                 properties,
+                call.getCreationTimeMillis(),
                 connectTimeMillis,
                 handle,
                 call.getHandlePresentation(),
@@ -673,7 +694,8 @@ public final class InCallController extends CallsManagerListenerBase {
                 call.getVideoState(),
                 conferenceableCallIds,
                 call.getIntentExtras(),
-                call.getExtras());
+                call.getExtras(),
+                call.mIsActiveSub);
     }
 
     private static int getParcelableState(Call call) {
@@ -768,7 +790,19 @@ public final class InCallController extends CallsManagerListenerBase {
         android.telecom.Call.Details.CAPABILITY_CAN_UPGRADE_TO_VIDEO,
 
         Connection.CAPABILITY_CAN_PAUSE_VIDEO,
-        android.telecom.Call.Details.CAPABILITY_CAN_PAUSE_VIDEO
+        android.telecom.Call.Details.CAPABILITY_CAN_PAUSE_VIDEO,
+
+        Connection.CAPABILITY_VOICE_PRIVACY,
+        android.telecom.Call.Details.CAPABILITY_VOICE_PRIVACY,
+
+        Connection.CAPABILITY_ADD_PARTICIPANT,
+        android.telecom.Call.Details.CAPABILITY_ADD_PARTICIPANT,
+
+        Connection.CAPABILITY_SUPPORTS_DOWNGRADE_TO_VOICE_LOCAL,
+        android.telecom.Call.Details.CAPABILITY_SUPPORTS_DOWNGRADE_TO_VOICE_LOCAL,
+
+        Connection.CAPABILITY_SUPPORTS_DOWNGRADE_TO_VOICE_REMOTE,
+        android.telecom.Call.Details.CAPABILITY_SUPPORTS_DOWNGRADE_TO_VOICE_REMOTE
     };
 
     private static int convertConnectionToCallCapabilities(int connectionCapabilities) {
@@ -781,7 +815,7 @@ public final class InCallController extends CallsManagerListenerBase {
         return callCapabilities;
     }
 
-    private static final int[] CONNECTION_TO_CALL_PROPERTIES = new int[] {
+    private static final int[] CONNECTION_CAPS_TO_CALL_PROPERTIES = new int[] {
         Connection.CAPABILITY_HIGH_DEF_AUDIO,
         android.telecom.Call.Details.PROPERTY_HIGH_DEF_AUDIO,
 
@@ -795,10 +829,37 @@ public final class InCallController extends CallsManagerListenerBase {
         android.telecom.Call.Details.PROPERTY_EMERGENCY_CALLBACK_MODE,
     };
 
-    private static int convertConnectionToCallProperties(int connectionCapabilities) {
+    private static int convertConnectionCapsToCallProperties(int connectionCapabilities) {
+        int callProperties = 0;
+        for (int i = 0; i < CONNECTION_CAPS_TO_CALL_PROPERTIES.length; i += 2) {
+            if ((CONNECTION_CAPS_TO_CALL_PROPERTIES[i] & connectionCapabilities) != 0) {
+                callProperties |= CONNECTION_CAPS_TO_CALL_PROPERTIES[i + 1];
+            }
+        }
+        return callProperties;
+    }
+
+    private static final int[] CONNECTION_TO_CALL_PROPERTIES = new int[] {
+        Connection.PROPERTY_WAS_FORWARDED,
+        android.telecom.Call.Details.PROPERTY_WAS_FORWARDED,
+
+        Connection.PROPERTY_HELD_REMOTELY,
+        android.telecom.Call.Details.PROPERTY_HELD_REMOTELY,
+
+        Connection.PROPERTY_DIALING_IS_WAITING,
+        android.telecom.Call.Details.PROPERTY_DIALING_IS_WAITING,
+
+        Connection.PROPERTY_ADDITIONAL_CALL_FORWARDED,
+        android.telecom.Call.Details.PROPERTY_ADDITIONAL_CALL_FORWARDED,
+
+        Connection.PROPERTY_REMOTE_INCOMING_CALLS_BARRED,
+        android.telecom.Call.Details.PROPERTY_REMOTE_INCOMING_CALLS_BARRED,
+    };
+
+    private static int convertConnectionToCallProperties(int connectionProperties) {
         int callProperties = 0;
         for (int i = 0; i < CONNECTION_TO_CALL_PROPERTIES.length; i += 2) {
-            if ((CONNECTION_TO_CALL_PROPERTIES[i] & connectionCapabilities) != 0) {
+            if ((CONNECTION_TO_CALL_PROPERTIES[i] & connectionProperties) != 0) {
                 callProperties |= CONNECTION_TO_CALL_PROPERTIES[i + 1];
             }
         }
