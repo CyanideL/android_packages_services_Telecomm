@@ -84,12 +84,4 @@ public class CallsManagerListenerBase implements CallsManager.CallsManagerListen
     public void onSessionModifyRequestReceived(Call call, VideoProfile videoProfile) {
 
     }
-
-    @Override
-    public void onMergeFailed(Call call) {
-    }
-
-    @Override
-    public void onProcessIncomingCall(Call call) {
-    }
 }

@@ -40,7 +40,6 @@ import android.telecom.VideoProfile;
 import android.telephony.PhoneNumberUtils;
 import android.text.TextUtils;
 
-import com.android.internal.telephony.ConfigResourceUtil;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telecom.IVideoProvider;
 import com.android.internal.telephony.CallerInfo;
@@ -79,7 +78,6 @@ public class Call implements CreateConnectionResponse {
         void onPostDialWait(Call call, String remaining);
         void onPostDialChar(Call call, char nextChar);
         void onConnectionCapabilitiesChanged(Call call);
-        void onConnectionPropertiesChanged(Call call);
         void onParentChanged(Call call);
         void onChildrenChanged(Call call);
         void onCannedSmsResponsesLoaded(Call call);
@@ -119,8 +117,6 @@ public class Call implements CreateConnectionResponse {
         public void onPostDialChar(Call call, char nextChar) {}
         @Override
         public void onConnectionCapabilitiesChanged(Call call) {}
-        @Override
-        public void onConnectionPropertiesChanged(Call call) {}
         @Override
         public void onParentChanged(Call call) {}
         @Override
@@ -298,7 +294,6 @@ public class Call implements CreateConnectionResponse {
     private boolean mDirectToVoicemailQueryPending;
 
     private int mConnectionCapabilities;
-    private int mConnectionProperties;
 
     private boolean mIsConference = false;
 
@@ -324,7 +319,6 @@ public class Call implements CreateConnectionResponse {
     private final CallsManager mCallsManager;
     private final TelecomSystem.SyncRoot mLock;
     private final CallerInfoAsyncQueryFactory mCallerInfoAsyncQueryFactory;
-    boolean mIsActiveSub = false;
 
     private boolean mWasConferencePreviouslyMerged = false;
 
@@ -335,8 +329,6 @@ public class Call implements CreateConnectionResponse {
     private Call mConferenceLevelActiveCall = null;
 
     private boolean mIsLocallyDisconnecting = false;
-
-    private ConfigResourceUtil mConfigResUtil = new ConfigResourceUtil();
 
     /**
      * Persists the specified parameters and initializes the new instance.
@@ -442,8 +434,9 @@ public class Call implements CreateConnectionResponse {
             component = mConnectionService.getComponentName().flattenToShortString();
         }
 
-        return String.format(Locale.US,
-                "[%s, %s, %s, %s, %s, childs(%d), has_parent(%b), [%s], [%s], %b, %s]",
+
+
+        return String.format(Locale.US, "[%s, %s, %s, %s, %s, childs(%d), has_parent(%b), [%s]]",
                 System.identityHashCode(this),
                 CallState.toString(mState),
                 component,
@@ -451,9 +444,7 @@ public class Call implements CreateConnectionResponse {
                 getVideoStateDescription(getVideoState()),
                 getChildCalls().size(),
                 getParentCall() != null,
-                Connection.capabilitiesToString(getConnectionCapabilities()),
-                Connection.propertiesToString(getConnectionProperties()),
-                mIsActiveSub, mTargetPhoneAccountHandle);
+                Connection.capabilitiesToString(getConnectionCapabilities()));
     }
 
     /**
@@ -800,10 +791,6 @@ public class Call implements CreateConnectionResponse {
         return mConnectTimeMillis;
     }
 
-    public void setConnectTimeMillis(long connectTimeMillis) {
-        mConnectTimeMillis = connectTimeMillis;
-    }
-
     int getConnectionCapabilities() {
         return mConnectionCapabilities;
     }
@@ -819,21 +806,6 @@ public class Call implements CreateConnectionResponse {
            mConnectionCapabilities = connectionCapabilities;
             for (Listener l : mListeners) {
                 l.onConnectionCapabilitiesChanged(this);
-            }
-        }
-    }
-
-    int getConnectionProperties() {
-        return mConnectionProperties;
-    }
-
-    void setConnectionProperties(int connectionProperties) {
-        Log.v(this, "setConnectionProperties: %s",
-                Connection.propertiesToString(connectionProperties));
-        if (mConnectionProperties != connectionProperties) {
-            mConnectionProperties = connectionProperties;
-            for (Listener l : mListeners) {
-                l.onConnectionPropertiesChanged(this);
             }
         }
     }
@@ -941,7 +913,6 @@ public class Call implements CreateConnectionResponse {
         setCallerDisplayName(
                 connection.getCallerDisplayName(), connection.getCallerDisplayNamePresentation());
         setConnectionCapabilities(connection.getConnectionCapabilities());
-        setConnectionProperties(connection.getConnectionProperties());
         setVideoProvider(connection.getVideoProvider());
         setVideoState(connection.getVideoState());
         setRingbackRequested(connection.isRingbackRequested());
@@ -1151,12 +1122,6 @@ public class Call implements CreateConnectionResponse {
         }
     }
 
-    void setLocalCallHold(boolean lchState) {
-        Preconditions.checkNotNull(mConnectionService);
-
-        mConnectionService.setLocalCallHold(this, lchState);
-    }
-
     /** Checks if this is a live call or not. */
     boolean isAlive() {
         switch (mState) {
@@ -1238,14 +1203,6 @@ public class Call implements CreateConnectionResponse {
         } else {
             Log.event(this, Log.Events.SPLIT_CONFERENCE);
             mConnectionService.splitFromConference(this);
-        }
-    }
-
-    void addParticipantWithConference(String recipients) {
-        if (mConnectionService == null) {
-            Log.w(this, "conference requested on a call without a connection service.");
-        } else {
-            mConnectionService.addParticipantWithConference(this, recipients);
         }
     }
 
@@ -1377,12 +1334,6 @@ public class Call implements CreateConnectionResponse {
         if (getHandle() == null) {
             // No incoming number known or call presentation is "PRESENTATION_RESTRICTED", in
             // other words, the user should not be able to see the incoming phone number.
-            return false;
-        }
-
-        if (!mConfigResUtil.getBooleanValue(mContext,
-                        "config_reject_call_via_sms_enabled")) {
-            //"Respond via SMS" feature is disabled by the above config.
             return false;
         }
 
@@ -1657,8 +1608,7 @@ public class Call implements CreateConnectionResponse {
     }
 
     public boolean getIsVoipAudioMode() {
-            return mIsVoipAudioMode ||((mHandle != null) ?
-                    (mHandle.getScheme() == PhoneAccount.SCHEME_SIP): false);
+        return mIsVoipAudioMode;
     }
 
     public void setIsVoipAudioMode(boolean audioModeIsVoip) {

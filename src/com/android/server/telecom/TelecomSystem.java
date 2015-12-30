@@ -67,13 +67,12 @@ public final class TelecomSystem {
     private final TelecomBroadcastIntentProcessor mTelecomBroadcastIntentProcessor;
     private final TelecomServiceImpl mTelecomServiceImpl;
     private final ContactsAsyncHelper mContactsAsyncHelper;
-    private final CallInfoProvider mCallInfoProvider;
 
     /**
      * Blacklist call notifier. Exists here so that the instance can be shared with
      * {@link TelecomBroadcastReceiver}.
      */
-    private final BlacklistCallNotifier mBlacklistCallNotifier;
+    private BlacklistCallNotifier mBlacklistCallNotifier;
 
     private final BroadcastReceiver mUserSwitchedReceiver = new BroadcastReceiver() {
         @Override
@@ -99,7 +98,6 @@ public final class TelecomSystem {
     public TelecomSystem(
             Context context,
             MissedCallNotifier missedCallNotifier,
-            CallInfoProvider callInfoProvider,
             CallerInfoAsyncQueryFactory callerInfoAsyncQueryFactory,
             HeadsetMediaButtonFactory headsetMediaButtonFactory,
             ProximitySensorManagerFactory proximitySensorManagerFactory,
@@ -107,7 +105,6 @@ public final class TelecomSystem {
         mContext = context.getApplicationContext();
 
         mMissedCallNotifier = missedCallNotifier;
-        mCallInfoProvider = callInfoProvider;
         mPhoneAccountRegistrar = new PhoneAccountRegistrar(mContext);
         mContactsAsyncHelper = new ContactsAsyncHelper(mLock);
         mBlacklistCallNotifier = new BlacklistCallNotifier(mContext);
@@ -122,8 +119,7 @@ public final class TelecomSystem {
                 headsetMediaButtonFactory,
                 proximitySensorManagerFactory,
                 inCallWakeLockControllerFactory,
-                mBlacklistCallNotifier,
-                mCallInfoProvider);
+                mBlacklistCallNotifier);
 
         mRespondViaSmsManager = new RespondViaSmsManager(mCallsManager, mLock);
         mCallsManager.setRespondViaSmsManager(mRespondViaSmsManager);
